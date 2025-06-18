@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   CopilotKit,
   useCopilotAction,
@@ -6,7 +6,6 @@ import {
 } from '@copilotkit/react-core';
 import {
   CopilotSidebar,
-  CopilotPopup,
 } from '@copilotkit/react-ui';
 import '@copilotkit/react-ui/styles.css';
 
@@ -65,6 +64,12 @@ function ScopeAIApp() {
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [transcript, setTranscript] = useState<string[]>([]);
+
+  // Track conversation messages
+  const addToTranscript = (message: string) => {
+    setTranscript(prev => [...prev, message]);
+  };
 
   // Make session data readable to Copilot
   useCopilotReadable({
@@ -95,6 +100,7 @@ function ScopeAIApp() {
         ...prev,
         userPersona: { role, industry },
       }));
+      addToTranscript(`User Role: ${role}, Industry: ${industry}`);
       return `Updated user persona: ${role} in ${industry}`;
     },
   });
@@ -146,6 +152,7 @@ function ScopeAIApp() {
           barriers,
         },
       }));
+      addToTranscript(`Primary Job: ${primaryJob}`);
       return `Updated Job-to-be-Done: ${primaryJob}`;
     },
   });
@@ -193,6 +200,7 @@ function ScopeAIApp() {
         identifiedPainPoints: [...prev.identifiedPainPoints, newPainPoint],
       }));
       
+      addToTranscript(`Pain Point Identified: ${painPoint} - Root Cause: ${rootCause}`);
       return `Added pain point analysis for: ${painPoint}`;
     },
   });
@@ -200,7 +208,7 @@ function ScopeAIApp() {
   // Action: Save Final Report
   useCopilotAction({
     name: "saveFinalReport",
-    description: "Save the final pain point scoping report",
+    description: "Save the final pain point scoping report to n8n",
     parameters: [
       {
         name: "summary",
@@ -208,50 +216,69 @@ function ScopeAIApp() {
         description: "A summary of the conversation and findings",
         required: true,
       },
-      {
-        name: "transcript",
-        type: "string",
-        description: "The full conversation transcript",
-        required: false,
-      },
     ],
-    handler: async ({ summary, transcript = '' }) => {
+    handler: async ({ summary }) => {
       setIsSaving(true);
       setSaveStatus('idle');
       
-      const finalData = {
-        ...sessionData,
+      const fullTranscript = transcript.join('\n\n');
+      
+      const reportData = {
+        uid: sessionData.uid,
+        sessionTimestamp: sessionData.sessionTimestamp,
+        userPersona: sessionData.userPersona,
+        jobToBeDone: sessionData.jobToBeDone,
+        identifiedPainPoints: sessionData.identifiedPainPoints,
         conversationSummary: summary,
-        fullTranscript: transcript,
+        fullTranscript: fullTranscript,
       };
 
       try {
+        console.log('Sending report to n8n:', reportData);
+        
         const response = await fetch('https://instabidssystem.app.n8n.cloud/webhook/save-pain-point-report', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            sessionId: finalData.uid,
-            companyName: 'ScopeAI Session',
-            userRole: finalData.userPersona.role,
-            userIndustry: finalData.userPersona.industry,
-            primaryJob: finalData.jobToBeDone.primaryJob,
-            painPoints: finalData.identifiedPainPoints,
-            summary: finalData.conversationSummary,
-            transcript: finalData.fullTranscript,
+            sessionId: reportData.uid,
+            companyName: `ScopeAI Session - ${new Date().toLocaleDateString()}`,
+            userRole: reportData.userPersona.role || 'Not specified',
+            userIndustry: reportData.userPersona.industry || 'Not specified',
+            primaryJob: reportData.jobToBeDone.primaryJob || 'Not specified',
+            functionalAspects: reportData.jobToBeDone.functionalAspects,
+            emotionalAspects: reportData.jobToBeDone.emotionalAspects,
+            socialAspects: reportData.jobToBeDone.socialAspects,
+            barriers: reportData.jobToBeDone.barriers,
+            painPoints: reportData.identifiedPainPoints,
+            summary: reportData.conversationSummary,
+            transcript: reportData.fullTranscript,
           }),
         });
 
+        console.log('Response status:', response.status);
+        const responseText = await response.text();
+        console.log('Response:', responseText);
+
         if (response.ok) {
           setSaveStatus('success');
-          return "Report saved successfully! The team will review your pain points and develop a tailored solution.";
+          
+          // Update session data with the summary and transcript
+          setSessionData(prev => ({
+            ...prev,
+            conversationSummary: summary,
+            fullTranscript: fullTranscript,
+          }));
+          
+          return "✅ Report saved successfully! The team will review your pain points and develop a tailored solution. Your session ID is: " + sessionData.uid;
         } else {
-          throw new Error('Failed to save report');
+          throw new Error(`Server responded with ${response.status}: ${responseText}`);
         }
       } catch (error) {
+        console.error('Error saving report:', error);
         setSaveStatus('error');
-        return "Failed to save report. Please try again.";
+        return `❌ Failed to save report. Error: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again or contact support.`;
       } finally {
         setIsSaving(false);
       }
@@ -259,55 +286,96 @@ function ScopeAIApp() {
   });
 
   return (
-    <div className="app-container">
-      <header className="app-header">
-        <h1>ScopeAI</h1>
-        <p>AI-Powered Pain Point Discovery</p>
-      </header>
-      
-      <main className="app-main">
-        <div className="session-info">
-          <span>Session ID: {sessionData.uid.slice(0, 8)}...</span>
-          {saveStatus === 'success' && (
-            <span className="save-status success">✓ Saved</span>
-          )}
-          {saveStatus === 'error' && (
-            <span className="save-status error">✗ Error</span>
-          )}
-        </div>
+    <div className="main-layout">
+      <div className="content-area">
+        <div className="app-container">
+          <header className="app-header">
+            <h1>ScopeAI</h1>
+            <p>AI-Powered Pain Point Discovery System</p>
+          </header>
+          
+          <main className="app-main">
+            <div className="session-info">
+              <span>Session ID: {sessionData.uid.slice(0, 8)}...</span>
+              {isSaving && (
+                <span className="save-status">
+                  <div className="loading-dots">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </div>
+                  Saving...
+                </span>
+              )}
+              {!isSaving && saveStatus === 'success' && (
+                <span className="save-status success">✓ Saved to Google Drive</span>
+              )}
+              {!isSaving && saveStatus === 'error' && (
+                <span className="save-status error">✗ Save Failed</span>
+              )}
+            </div>
 
-        <div className="data-preview">
-          {sessionData.userPersona.role && (
-            <div className="data-card">
-              <h3>User Profile</h3>
-              <p><strong>Role:</strong> {sessionData.userPersona.role}</p>
-              <p><strong>Industry:</strong> {sessionData.userPersona.industry}</p>
+            <div className="data-preview">
+              {!sessionData.userPersona.role && !sessionData.jobToBeDone.primaryJob && sessionData.identifiedPainPoints.length === 0 ? (
+                <div className="empty-state">
+                  <h2>Welcome to ScopeAI</h2>
+                  <p>
+                    Start a conversation with our AI assistant to discover and analyze 
+                    your business pain points using proven frameworks.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {sessionData.userPersona.role && (
+                    <div className="data-card">
+                      <h3>👤 User Profile</h3>
+                      <p><strong>Role:</strong> {sessionData.userPersona.role}</p>
+                      <p><strong>Industry:</strong> {sessionData.userPersona.industry}</p>
+                    </div>
+                  )}
+                  
+                  {sessionData.jobToBeDone.primaryJob && (
+                    <div className="data-card">
+                      <h3>🎯 Job to be Done</h3>
+                      <p><strong>Primary Goal:</strong> {sessionData.jobToBeDone.primaryJob}</p>
+                      {sessionData.jobToBeDone.functionalAspects.length > 0 && (
+                        <p><strong>Functional Aspects:</strong> {sessionData.jobToBeDone.functionalAspects.join(', ')}</p>
+                      )}
+                      {sessionData.jobToBeDone.emotionalAspects.length > 0 && (
+                        <p><strong>Emotional Drivers:</strong> {sessionData.jobToBeDone.emotionalAspects.join(', ')}</p>
+                      )}
+                      {sessionData.jobToBeDone.barriers.length > 0 && (
+                        <p><strong>Barriers:</strong> {sessionData.jobToBeDone.barriers.join(', ')}</p>
+                      )}
+                    </div>
+                  )}
+                  
+                  {sessionData.identifiedPainPoints.length > 0 && (
+                    <div className="data-card">
+                      <h3>🔍 Identified Pain Points</h3>
+                      <ul>
+                        {sessionData.identifiedPainPoints.map((pp, index) => (
+                          <li key={index}>
+                            <strong>{pp.painPoint}</strong>
+                            <br />
+                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                              Impact: {pp.impact}
+                            </span>
+                            <br />
+                            <span style={{ color: 'var(--accent-bright)', fontSize: '0.9rem' }}>
+                              Root Cause: {pp.rootCause}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
-          )}
-          
-          {sessionData.jobToBeDone.primaryJob && (
-            <div className="data-card">
-              <h3>Job to be Done</h3>
-              <p><strong>Primary Goal:</strong> {sessionData.jobToBeDone.primaryJob}</p>
-            </div>
-          )}
-          
-          {sessionData.identifiedPainPoints.length > 0 && (
-            <div className="data-card">
-              <h3>Identified Pain Points</h3>
-              <ul>
-                {sessionData.identifiedPainPoints.map((pp, index) => (
-                  <li key={index}>
-                    <strong>{pp.painPoint}</strong>
-                    <br />
-                    Root Cause: {pp.rootCause}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+          </main>
         </div>
-      </main>
+      </div>
     </div>
   );
 }
@@ -321,37 +389,52 @@ function generateUID(): string {
 }
 
 function App() {
-  // Use CopilotKit Cloud instead of local runtime
+  // Use CopilotKit Cloud
   const publicApiKey = "ck_pub_64075c460b15d61634dcfa491b116a20";
 
   return (
     <CopilotKit publicApiKey={publicApiKey}>
       <CopilotSidebar
-        instructions={`You are ScopeAI, an expert Business Analyst and Product Strategist. 
-            Your tone is professional, inquisitive, empathetic, and neutral. 
-            Your core function is to diagnose problems using the Jobs-to-be-Done (JTBD) and 5 Whys frameworks.
+        instructions={`You are ScopeAI, an expert Business Analyst and Product Strategist specializing in the Jobs-to-be-Done (JTBD) and 5 Whys frameworks.
 
-            IMPORTANT: You have access to these actions:
-            1. updateUserPersona(role, industry) - Call this when you learn about the user's role and industry
-            2. updateJobToBeDone(primaryJob, functionalAspects, emotionalAspects, socialAspects, barriers) - Call this when you understand their JTBD
-            3. addPainPointAnalysis(painPoint, impact, rootCauseAnalysis, rootCause) - Call this after completing a 5 Whys analysis
-            4. saveFinalReport(summary) - Call this when ready to save the complete analysis
+IMPORTANT ACTIONS YOU MUST USE:
+1. updateUserPersona(role, industry) - ALWAYS call this when you learn the user's role
+2. updateJobToBeDone(primaryJob, functionalAspects, emotionalAspects, socialAspects, barriers) - Call after JTBD discovery
+3. addPainPointAnalysis(painPoint, impact, rootCauseAnalysis, rootCause) - Call after each 5 Whys completion
+4. saveFinalReport(summary) - Call when analysis is complete
 
-            CONVERSATION FLOW:
-            1. Start by greeting the user and asking about their role and industry, then call updateUserPersona
-            2. JTBD Discovery Phase: Understand their high-level goal and context, then call updateJobToBeDone
-            3. 5 Whys Analysis Phase: When a pain point is mentioned, drill down to find root causes
-            4. After each 5 Whys completion, call addPainPointAnalysis
-            5. When analysis is complete, offer to save and call saveFinalReport
+CONVERSATION FLOW:
+Phase 1: Introduction
+- Greet the user professionally
+- Ask about their role and industry
+- Call updateUserPersona immediately after they respond
 
-            RULES:
-            - Ask only ONE question at a time
-            - Never provide solutions, only diagnose
-            - Be genuinely curious about their challenges
-            - Always use the provided actions to update the session data
-            - Ensure you complete at least one full 5 Whys analysis before offering to save
-            
-            Start with: "Hello! I'm ScopeAI, and I'm here to help you thoroughly understand and scope your challenges. To start, could you tell me about your role and the industry you work in?"`}
+Phase 2: JTBD Discovery
+- Ask: "What is the primary goal or progress you're trying to make in your work?"
+- Explore functional, emotional, and social aspects
+- Identify current tools/solutions and barriers
+- Call updateJobToBeDone with all discovered information
+
+Phase 3: 5 Whys Analysis
+- When user mentions a pain point, pivot immediately
+- Ask "Why does that happen?" iteratively (5 times)
+- Track each why and its answer
+- Call addPainPointAnalysis with complete analysis
+
+Phase 4: Completion
+- After identifying at least one root cause
+- Summarize findings
+- Ask if they want to save the analysis
+- Call saveFinalReport with a comprehensive summary
+
+RULES:
+- One question at a time
+- Never provide solutions
+- Always use the actions to save data
+- Be genuinely curious and empathetic
+- Ensure data is captured before offering to save
+
+Start with: "Hello! I'm ScopeAI, your AI Business Analyst. I'm here to help you thoroughly understand and scope your business challenges using proven frameworks. To begin, could you tell me about your role and the industry you work in?"`}
         defaultOpen={true}
         clickOutsideToClose={false}
       >
