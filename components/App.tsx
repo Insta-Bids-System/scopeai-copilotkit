@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   CopilotKit,
   useCopilotAction,
@@ -8,6 +8,8 @@ import {
   CopilotSidebar,
 } from '@copilotkit/react-ui';
 import '@copilotkit/react-ui/styles.css';
+import ConversationalApp from './ConversationalApp';
+import { N8N_WEBHOOKS } from '../config/webhooks';
 
 // Types for our structured data
 interface UserPersona {
@@ -236,7 +238,7 @@ function ScopeAIApp() {
       try {
         console.log('Sending report to n8n:', reportData);
         
-        const response = await fetch('https://instabidssystem.app.n8n.cloud/webhook/save-pain-point-report', {
+        const response = await fetch(N8N_WEBHOOKS.SAVE_REPORT, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -270,6 +272,22 @@ function ScopeAIApp() {
             conversationSummary: summary,
             fullTranscript: fullTranscript,
           }));
+          
+          // Trigger validation
+          try {
+            await fetch(N8N_WEBHOOKS.VALIDATION, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                sessionUID: sessionData.uid
+              }),
+            });
+          } catch (validationError) {
+            console.error('Validation trigger failed:', validationError);
+            // Don't fail the save if validation fails
+          }
           
           return "✅ Report saved successfully! The team will review your pain points and develop a tailored solution. Your session ID is: " + sessionData.uid;
         } else {
@@ -323,6 +341,12 @@ function ScopeAIApp() {
                     Start a conversation with our AI assistant to discover and analyze 
                     your business pain points using proven frameworks.
                   </p>
+                  <ul className="feature-list">
+                    <li>✨ Jobs-to-be-Done (JTBD) framework for understanding your goals</li>
+                    <li>🔍 5 Whys analysis to identify root causes</li>
+                    <li>💾 Automatic report generation and saving</li>
+                    <li>✅ AI-powered validation of findings</li>
+                  </ul>
                 </div>
               ) : (
                 <>
@@ -389,13 +413,45 @@ function generateUID(): string {
 }
 
 function App() {
+  const [mode, setMode] = useState<'copilotkit' | 'conversational'>('copilotkit');
+  const [sessionId] = useState(generateUID());
+  
   // Use CopilotKit Cloud
   const publicApiKey = "ck_pub_64075c460b15d61634dcfa491b116a20";
 
+  // Mode toggle component
+  const ModeToggle = () => (
+    <div className="mode-toggle">
+      <button
+        className={mode === 'copilotkit' ? 'active' : ''}
+        onClick={() => setMode('copilotkit')}
+      >
+        CopilotKit Mode
+      </button>
+      <button
+        className={mode === 'conversational' ? 'active' : ''}
+        onClick={() => setMode('conversational')}
+      >
+        Direct Conversation
+      </button>
+    </div>
+  );
+
+  if (mode === 'conversational') {
+    return (
+      <div className="app-wrapper">
+        <ModeToggle />
+        <ConversationalApp sessionId={sessionId} />
+      </div>
+    );
+  }
+
   return (
-    <CopilotKit publicApiKey={publicApiKey}>
-      <CopilotSidebar
-        instructions={`You are ScopeAI, an expert Business Analyst and Product Strategist specializing in the Jobs-to-be-Done (JTBD) and 5 Whys frameworks.
+    <div className="app-wrapper">
+      <ModeToggle />
+      <CopilotKit publicApiKey={publicApiKey}>
+        <CopilotSidebar
+          instructions={`You are ScopeAI, an expert Business Analyst and Product Strategist specializing in the Jobs-to-be-Done (JTBD) and 5 Whys frameworks.
 
 IMPORTANT ACTIONS YOU MUST USE:
 1. updateUserPersona(role, industry) - ALWAYS call this when you learn the user's role
@@ -419,6 +475,7 @@ Phase 3: 5 Whys Analysis
 - When user mentions a pain point, pivot immediately
 - Ask "Why does that happen?" iteratively (5 times)
 - Track each why and its answer
+- Format rootCauseAnalysis as: [{"why": 1, "cause": "answer"}, {"why": 2, "cause": "answer"}, ...]
 - Call addPainPointAnalysis with complete analysis
 
 Phase 4: Completion
@@ -433,14 +490,16 @@ RULES:
 - Always use the actions to save data
 - Be genuinely curious and empathetic
 - Ensure data is captured before offering to save
+- Follow the two-phase structure strictly
 
 Start with: "Hello! I'm ScopeAI, your AI Business Analyst. I'm here to help you thoroughly understand and scope your business challenges using proven frameworks. To begin, could you tell me about your role and the industry you work in?"`}
-        defaultOpen={true}
-        clickOutsideToClose={false}
-      >
-        <ScopeAIApp />
-      </CopilotSidebar>
-    </CopilotKit>
+          defaultOpen={true}
+          clickOutsideToClose={false}
+        >
+          <ScopeAIApp />
+        </CopilotSidebar>
+      </CopilotKit>
+    </div>
   );
 }
 
