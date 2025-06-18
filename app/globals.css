@@ -1,0 +1,314 @@
+/* Dark theme with futuristic design */
+:root {
+  --primary-bg: #0a0a0f;
+  --secondary-bg: #1a1a2e;
+  --card-bg: #16213e;
+  --accent-color: #0f4c75;
+  --accent-bright: #3282b8;
+  --text-primary: #e8e8e8;
+  --text-secondary: #b8b8c8;
+  --success-color: #00d9a3;
+  --error-color: #ff4757;
+  --border-color: #2a2a3e;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--primary-bg);
+  color: var(--text-primary);
+  min-height: 100vh;
+}
+
+.app-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(135deg, var(--primary-bg) 0%, var(--secondary-bg) 100%);
+}
+
+.app-header {
+  padding: 2rem;
+  text-align: center;
+  background: rgba(16, 33, 62, 0.3);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border-color);
+  animation: fadeInDown 0.6s ease-out;
+}
+
+.app-header h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--accent-bright) 0%, var(--success-color) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 0.5rem;
+}
+
+.app-header p {
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+}
+
+.app-main {
+  flex: 1;
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.session-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: rgba(22, 33, 62, 0.5);
+  border-radius: 12px;
+  margin-bottom: 2rem;
+  backdrop-filter: blur(5px);
+  animation: fadeIn 0.8s ease-out 0.2s both;
+}
+
+.session-info span {
+  font-family: 'Courier New', monospace;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.save-status {
+  padding: 0.25rem 1rem;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  animation: slideIn 0.3s ease-out;
+}
+
+.save-status.success {
+  background: rgba(0, 217, 163, 0.2);
+  color: var(--success-color);
+  border: 1px solid var(--success-color);
+}
+
+.save-status.error {
+  background: rgba(255, 71, 87, 0.2);
+  color: var(--error-color);
+  border: 1px solid var(--error-color);
+}
+
+.data-preview {
+  display: grid;
+  gap: 1.5rem;
+  animation: fadeInUp 0.8s ease-out 0.4s both;
+}
+
+.data-card {
+  background: rgba(22, 33, 62, 0.6);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 1.5rem;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.data-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(50, 130, 184, 0.1), transparent);
+  transition: left 0.5s ease;
+}
+
+.data-card:hover::before {
+  left: 100%;
+}
+
+.data-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(50, 130, 184, 0.2);
+  border-color: var(--accent-bright);
+}
+
+.data-card h3 {
+  font-size: 1.2rem;
+  color: var(--accent-bright);
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.data-card p {
+  margin-bottom: 0.5rem;
+  line-height: 1.6;
+}
+
+.data-card strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.data-card ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+.data-card li {
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  background: rgba(10, 10, 15, 0.4);
+  border-radius: 8px;
+  border-left: 3px solid var(--accent-bright);
+  transition: all 0.2s ease;
+}
+
+.data-card li:hover {
+  background: rgba(10, 10, 15, 0.6);
+  transform: translateX(4px);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--secondary-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--accent-color);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-bright);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .app-header h1 {
+    font-size: 2rem;
+  }
+  
+  .app-header p {
+    font-size: 1rem;
+  }
+  
+  .app-main {
+    padding: 1rem;
+  }
+  
+  .session-info {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
+  
+  .data-card {
+    padding: 1rem;
+  }
+}
+
+/* Override CopilotKit styles for dark theme */
+.copilotKitPopup {
+  --ck-body-background-color: var(--secondary-bg);
+  --ck-body-text-color: var(--text-primary);
+  --ck-border-color: var(--border-color);
+  --ck-primary-color: var(--accent-bright);
+}
+
+.copilotKitSidebar {
+  background: var(--secondary-bg) !important;
+  border-left: 1px solid var(--border-color) !important;
+}
+
+.copilotKitSidebar .copilotKitMessages {
+  background: var(--primary-bg) !important;
+}
+
+.copilotKitSidebar .copilotKitMessage {
+  color: var(--text-primary) !important;
+}
+
+.copilotKitSidebar .copilotKitAssistantMessage {
+  background: var(--card-bg) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+.copilotKitSidebar .copilotKitUserMessage {
+  background: var(--accent-color) !important;
+}
+
+.copilotKitSidebar .copilotKitInput {
+  background: var(--card-bg) !important;
+  border: 1px solid var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+.copilotKitSidebar .copilotKitInput:focus {
+  border-color: var(--accent-bright) !important;
+  box-shadow: 0 0 0 2px rgba(50, 130, 184, 0.2) !important;
+}
